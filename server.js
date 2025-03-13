@@ -1,16 +1,15 @@
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
-const connectMongoDB = require("./mongodb"); // Import MongoDB connection
-const db = require("./postgres"); // Import PostgreSQL connection
+const connectMongoDB = require("./mongodb"); 
+const db = require("./postgres"); 
 
 const app = express();
 app.use(express.json());
 app.use(cors());
 
-// Connect Databases
-connectMongoDB(); // Connect to MongoDB
-// PostgreSQL connection will automatically run from postgres.js
+connectMongoDB(); 
+
 
 app.get("/", (req, res) => {
   res.send("Echoes Server Running...");
