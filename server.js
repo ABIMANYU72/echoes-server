@@ -4,10 +4,12 @@ const cors = require("cors");
 const connectMongoDB = require("./mongodb"); 
 const db = require("./postgres"); 
 require("./models/userPG"); // Ensure PostgreSQL table is created
+const profileRoutes = require("./routes/profileRoutes");
 
 const app = express();
 app.use(express.json());
 app.use(cors());
+app.use("/api/profile", profileRoutes);
 
 connectMongoDB(); 
 
