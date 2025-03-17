@@ -2,6 +2,8 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const db = require("../postgres");
 const User = require("../models/userMG");
+const { generateResetToken } = require("../models/userPG");
+const sendResetEmail = require("../config/email");
 
 const registerUser = async (req, res) => {
   try {
@@ -97,8 +99,67 @@ const loginUser = async (req, res) => {
       res.status(500).json({ message: "Server error" });
     }
   };
+
+  const forgotPassword = async (req, res) => {
+    try {
+      const { email } = req.body;
   
-module.exports = { registerUser, loginUser, getUserProfile, updateUserProfile };
+      // Find user by email
+      const userQuery = await db.query("SELECT id FROM users WHERE email = $1", [email]);
+      if (userQuery.rows.length === 0) {
+        return res.status(404).json({ message: "User not found" });
+      }
+  
+      const userId = userQuery.rows[0].id;
+      const token = await generateResetToken(userId);
+  
+      await sendResetEmail(email, token);
+      res.status(200).json({ message: "Password reset link sent to email" });
+    } catch (error) {
+      console.error("Error sending reset email:", error);
+      res.status(500).json({ message: "Server error" });
+    }
+  };
+
+  const resetPassword = async (req, res) => {
+    try {
+      const { token, newPassword } = req.body;
+  
+      // Find user by reset token
+      const userQuery = await db.query(
+        "SELECT id, reset_token_expiry FROM users WHERE reset_token = $1",
+        [token]
+      );
+  
+      if (userQuery.rows.length === 0) {
+        return res.status(400).json({ message: "Invalid or expired token" });
+      }
+  
+      const user = userQuery.rows[0];
+  
+      // Check if token is expired
+      if (new Date(user.reset_token_expiry) < new Date()) {
+        return res.status(400).json({ message: "Token expired" });
+      }
+  
+      // Hash new password
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(newPassword, salt);
+  
+      // Update password in DB
+      await db.query("UPDATE users SET password = $1, reset_token = NULL, reset_token_expiry = NULL WHERE id = $2", [
+        hashedPassword,
+        user.id,
+      ]);
+  
+      res.status(200).json({ message: "Password reset successfully" });
+    } catch (error) {
+      console.error("Error resetting password:", error);
+      res.status(500).json({ message: "Server error" });
+    }
+  };
+  
+module.exports = { registerUser, loginUser, getUserProfile, updateUserProfile, forgotPassword, resetPassword };
   
   
   
